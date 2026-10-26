@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Amelie's Flower Pricer</title>
+<meta name="description" content="Price wedding flower orders from stem costs and your hourly rate, then copy a ready-to-send client quote.">
+<meta name="theme-color" content="#17231C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flower Pricer">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one phone-width column of numbered steps, a sticky total bar at the bottom, the breakdown and client text below. */
+:root{
+  --bg:#F5F8F4; --surface:#FFFFFF; --ink:#17231C; --muted:#5B6B61; --line:#D9E3DB;
+  --accent:#B3315C; --accent-ink:#FFFFFF; --accent-soft:#F8E4EB;
+  --stem:#2E6A47; --stem-soft:#E0EEE5;
+  --warn:#9A5A08; --warn-soft:#FBEED6; --bad:#B42318; --bad-soft:#FBE3DF;
+  --bar:#17231C; --bar-ink:#F5F8F4;
+  --display:"Young Serif", Georgia, "Times New Roman", serif;
+  --body:"Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#111713; --surface:#18211B; --ink:#E7EEE9; --muted:#9AAAA0; --line:#2A362E;
+  --accent:#E8789D; --accent-ink:#1A0D12; --accent-soft:#3A1F29;
+  --stem:#7CC59A; --stem-soft:#1D3326;
+  --warn:#F0B35C; --warn-soft:#3A2C14; --bad:#F2877A; --bad-soft:#3D1D19;
+  --bar:#E7EEE9; --bar-ink:#111713; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#111713; --surface:#18211B; --ink:#E7EEE9; --muted:#9AAAA0; --line:#2A362E;
+  --accent:#E8789D; --accent-ink:#1A0D12; --accent-soft:#3A1F29;
+  --stem:#7CC59A; --stem-soft:#1D3326;
+  --warn:#F0B35C; --warn-soft:#3A2C14; --bad:#F2877A; --bad-soft:#3D1D19;
+  --bar:#E7EEE9; --bar-ink:#111713; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+.wrap{max-width:680px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 120px;display:flex;flex-direction:column;gap:18px}
+h1,h2{font-family:var(--display);font-weight:400;text-wrap:balance;margin:0}
+h1{font-size:1.9rem;line-height:1.1}
+h2{font-size:1.25rem;display:flex;align-items:baseline;gap:10px}
+.num{font-family:var(--body);font-weight:700;font-size:.8rem;color:var(--accent);background:var(--accent-soft);border-radius:99px;min-width:1.6rem;height:1.6rem;display:inline-grid;place-items:center;flex:none;transform:translateY(-2px)}
+p{margin:0}
+.lede{color:var(--muted);max-width:60ch}
+.tab{font-variant-numeric:tabular-nums}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.hint{color:var(--muted);font-size:.875rem}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:.85rem;font-weight:600;color:var(--muted)}
+input[type=text],input[type=number],input[type=date]{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.row2{grid-template-columns:1fr}}
+
+/* style tiers */
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:460px){.tiers{grid-template-columns:1fr}}
+.tier{font:inherit;color:inherit;text-align:left;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-height:44px}
+.tier b{font-family:var(--display);font-weight:400;font-size:1.1rem}
+.tier span{font-size:.82rem;color:var(--muted)}
+.tier em{font-style:normal;font-size:.82rem;font-weight:600;color:var(--stem)}
+.tier[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+
+/* order list */
+.items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.item{border-top:1px solid var(--line);padding:12px 0;display:flex;flex-direction:column;gap:6px}
+.item:first-child{border-top:0;padding-top:0}
+.item.zero .item-name{color:var(--muted)}
+.item-main{display:flex;align-items:center;gap:12px}
+.item-text{flex:1;min-width:0;display:flex;flex-direction:column}
+.item-name{font-weight:600}
+.item-meta{font-size:.8rem;color:var(--muted)}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;overflow:hidden;flex:none}
+.stepper button{font:inherit;font-size:1.3rem;line-height:1;width:44px;height:44px;border:0;background:var(--bg);color:var(--ink);cursor:pointer}
+.stepper button:active{background:var(--accent-soft)}
+.stepper output{min-width:2.4rem;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.item-sub{display:flex;align-items:center;gap:10px;font-size:.875rem;color:var(--muted)}
+.item-sub .line{margin-left:auto;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.linkbtn{font:inherit;font-size:.85rem;font-weight:600;color:var(--accent);background:none;border:0;padding:6px 0;cursor:pointer;min-height:32px}
+.item-edit{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:var(--bg);border-radius:10px;padding:12px}
+.item-edit .wide{grid-column:1/-1}
+.btn{font:inherit;font-weight:600;border-radius:12px;padding:12px 16px;min-height:44px;cursor:pointer;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--bad);border-color:var(--bad-soft)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+
+/* pay slider */
+.pay-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.pay-big{font-family:var(--display);font-size:2.2rem;line-height:1}
+.pay-big small{font-family:var(--body);font-size:1rem;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent);height:32px}
+.ticks{position:relative;height:30px;font-size:.75rem;color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap;text-align:center;line-height:1.2}
+.ticks span::before{content:"";display:block;width:1px;height:6px;background:var(--muted);margin:0 auto 2px}
+.switch{display:flex;align-items:center;gap:12px;cursor:pointer;font-weight:600}
+.switch input{width:22px;height:22px;accent-color:var(--accent)}
+
+/* notices and chips */
+.note{border-radius:10px;padding:10px 12px;font-size:.9rem}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.good{background:var(--stem-soft);color:var(--stem)}
+.note.bad{background:var(--bad-soft);color:var(--bad)}
+.chip{display:inline-block;font-size:.78rem;font-weight:700;border-radius:99px;padding:3px 10px;letter-spacing:.02em}
+.chip.good{background:var(--stem-soft);color:var(--stem)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+
+/* results */
+.total-hero{display:flex;flex-direction:column;gap:4px}
+.total-hero .big{font-family:var(--display);font-size:2.8rem;line-height:1}
+.split{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--line)}
+.split i{display:block;height:100%}
+.split .s-mat{background:var(--stem)}
+.split .s-pay{background:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.85rem;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+dl.kv{display:grid;grid-template-columns:1fr auto;gap:8px 16px;margin:0}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{margin:0;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+dl.kv .sum{border-top:1px solid var(--line);padding-top:8px;color:var(--ink);font-weight:700}
+.subhead{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+textarea{font:inherit;font-size:.9rem;width:100%;min-height:300px;resize:vertical;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;font-variant-numeric:tabular-nums}
+details.fine summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:44px}
+details.fine summary::-webkit-details-marker{display:none}
+details.fine summary::after{content:"+";font-size:1.4rem;color:var(--accent)}
+details.fine[open] summary::after{content:"−"}
+.fine-body{display:flex;flex-direction:column;gap:14px;padding-top:6px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:420px){.grid3{grid-template-columns:1fr 1fr}}
+.sources{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.sources a{color:var(--accent)}
+.empty{color:var(--muted);text-align:center;padding:12px}
+
+/* sticky bar */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bar);color:var(--bar-ink);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.bar-in{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.bar-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.bar-total{font-family:var(--display);font-size:1.5rem;line-height:1.1}
+.bar-sub{font-size:.82rem;opacity:.8}
+.bar .btn{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);flex:none}
+@media (prefers-reduced-motion:no-preference){ .split i{transition:width .25s ease} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <h1>Amelie's Flower Pricer</h1>
+    <p class="lede">Tap in the pieces, pick a style, set what your time is worth. The price, your pay per hour, and a text you can send the client all update as you go.</p>
+  </header>
+
+  <section class="card" aria-labelledby="h-who">
+    <h2 id="h-who"><span class="num">1</span>Who and when</h2>
+    <div class="row2">
+      <label class="f" for="client">Client name<input type="text" id="client" placeholder="e.g. Ashley & Blake" autocomplete="off"></label>
+      <label class="f" for="wdate">Wedding date<input type="date" id="wdate"></label>
+    </div>
+    <div id="holidayNote" class="note warn" hidden></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-style">
+    <h2 id="h-style"><span class="num">2</span>Flower style</h2>
+    <div class="tiers" id="tiers" role="group" aria-label="Flower style"></div>
+    <p class="hint">This sets what you expect to pay per stem. You can change the per-stem costs under "Fine-tune my numbers."</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-order">
+    <h2 id="h-order"><span class="num">3</span>What they want</h2>
+    <ul class="items" id="items"></ul>
+    <div class="btns"><button class="btn" id="addItem" type="button">+ Add another piece</button></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-pay">
+    <h2 id="h-pay"><span class="num">4</span>What your time is worth</h2>
+    <div class="pay-top">
+      <div class="pay-big tab"><span id="rateOut">$25</span><small> / hour</small></div>
+      <span id="rateChip" class="chip good">Fair</span>
+    </div>
+    <div>
+      <input type="range" id="rate" min="15" max="45" step="1" value="25" aria-label="Hourly rate">
+      <div class="ticks" aria-hidden="true">
+        <span style="left:6.67%">$17<br>shop job</span>
+        <span style="left:16.67%">$20<br>floor</span>
+      </div>
+    </div>
+    <p class="hint">Lafayette florist jobs pay about $17/hr. Stay at $20 or above, since you also carry the risk of flowers dying, buy your own buckets, and pay your own taxes.</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-del">
+    <h2 id="h-del"><span class="num">5</span>Delivery</h2>
+    <label class="switch" for="delOn"><input type="checkbox" id="delOn" checked> I'm delivering and setting up</label>
+    <div class="row2" id="delFields">
+      <label class="f" for="delHours">Hours for drive + setup<input type="number" id="delHours" min="0" step="0.25" inputmode="decimal"></label>
+      <label class="f" for="gas">Gas cost ($)<input type="number" id="gas" min="0" step="1" inputmode="decimal"></label>
+    </div>
+  </section>
+
+  <section class="card" id="results" aria-labelledby="h-res">
+    <h2 id="h-res">The quote</h2>
+    <div id="resBody"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-text">
+    <h2 id="h-text">Text for the client</h2>
+    <p class="hint">Copy this and paste it into a text or email. Edit anything you want before sending.</p>
+    <textarea id="quoteText" aria-label="Quote text for the client"></textarea>
+    <div class="btns"><button class="btn primary" id="copyBtn" type="button">Copy text</button><span id="copyMsg" class="hint" style="align-self:center" aria-live="polite"></span></div>
+  </section>
+
+  <section class="card">
+    <details class="fine" id="fine">
+      <summary>Fine-tune my numbers</summary>
+      <div class="fine-body">
+        <p class="hint">These save on this phone and carry over to every new quote. After your first wedding, replace the starting guesses with your real times and costs.</p>
+        <div class="subhead">Cost per stem, with tax, from your supplier</div>
+        <div class="grid3">
+          <label class="f" for="sc-budget">Simple ($)<input type="number" id="sc-budget" step="0.05" min="0" inputmode="decimal"></label>
+          <label class="f" for="sc-mid">Classic ($)<input type="number" id="sc-mid" step="0.05" min="0" inputmode="decimal"></label>
+          <label class="f" for="sc-premium">Luxe ($)<input type="number" id="sc-premium" step="0.05" min="0" inputmode="decimal"></label>
+        </div>
+        <div class="subhead">Time that isn't arranging</div>
+        <div class="grid3">
+          <label class="f" for="consult">Meeting the client (hrs)<input type="number" id="consult" step="0.25" min="0" inputmode="decimal"></label>
+          <label class="f" for="sourcing">Buying + pickup (hrs)<input type="number" id="sourcing" step="0.25" min="0" inputmode="decimal"></label>
+          <label class="f" for="cleanup">Cleanup (hrs)<input type="number" id="cleanup" step="0.25" min="0" inputmode="decimal"></label>
+          <label class="f" for="proc">Prepping stems (hrs per 100)<input type="number" id="proc" step="0.1" min="0" inputmode="decimal"></label>
+        </div>
+        <div class="subhead">Buffers, tax and payment terms</div>
+        <div class="grid3">
+          <label class="f" for="waste">Extra stems (%)<input type="number" id="waste" step="1" min="0" inputmode="decimal"></label>
+          <label class="f" for="holPct">Holiday price bump (%)<input type="number" id="holPct" step="1" min="0" inputmode="decimal"></label>
+          <label class="f" for="tax">Sales tax (%)<input type="number" id="tax" step="0.05" min="0" inputmode="decimal"></label>
+          <label class="f" for="deposit">Deposit (%)<input type="number" id="deposit" step="5" min="0" max="100" inputmode="decimal"></label>
+          <label class="f" for="balDays">Balance due (days before)<input type="number" id="balDays" step="1" min="0" inputmode="numeric"></label>
+          <label class="f" for="shopDel">Shop delivery fee ($)<input type="number" id="shopDel" step="5" min="0" inputmode="decimal"></label>
+        </div>
+        <label class="switch" for="holAuto"><input type="checkbox" id="holAuto" checked> Add the holiday bump automatically near Valentine's Day and Mother's Day</label>
+        <p class="hint">Sales tax: published Lafayette rates range from 9% to 11%. Confirm yours when you get your sales tax number.</p>
+        <div class="btns">
+          <button class="btn ghost" id="newQuote" type="button">Start a new quote</button>
+          <button class="btn danger" id="resetAll" type="button">Reset everything</button>
+        </div>
+        <div id="resetConfirm" class="note bad" hidden>
+          <p style="margin-bottom:8px">This puts every number back to the starting guesses. Sure?</p>
+          <div class="btns"><button class="btn danger" id="resetYes" type="button">Yes, reset</button><button class="btn ghost" id="resetNo" type="button">Keep my numbers</button></div>
+        </div>
+        <div class="sources">
+          <div class="subhead">Where the starting numbers come from</div>
+          <p>Stem costs: <a href="https://www.samsclub.com/browse/bulk-roses/1243" target="_blank" rel="noopener">Sam's Club bulk roses</a> ($1.05 to $1.80/stem) and <a href="https://www.wholeblossoms.com/wedding-flowers-blog/bulk-flower-price-estimates-by-stem-roses-peonies-ranunculus-hydrangeas-more/" target="_blank" rel="noopener">Whole Blossoms</a> (carnations $0.35 to $1.00, garden roses about $5.56).</p>
+          <p>Stems per piece: <a href="https://fiftyflowers.com/blogs/wedding-flowers/how-many-flowers-do-i-need-for-a-wedding-the-ultimate-checklist" target="_blank" rel="noopener">FiftyFlowers</a> (bridal 25 to 36, bridesmaid 15 to 25, boutonniere and corsage 1 to 3).</p>
+          <p>Shop prices: <a href="https://www.spedales.com/shop/weddings/" target="_blank" rel="noopener">Spedale's</a>, <a href="https://www.weddingwire.com/biz/flowers-by-rodney-lafayette/8020830c84e603b3.html" target="_blank" rel="noopener">Flowers By Rodney</a>, <a href="https://www.rickeyheromans.com/shop/bridal-party" target="_blank" rel="noopener">Rickey Heroman's</a>, <a href="https://rentabloom.com/wedding-flower-cost/" target="_blank" rel="noopener">Rent a Bloom national survey</a>. No Lafayette shop posts flower girl or altar prices, so those shop numbers are estimates.</p>
+          <p>Wages: Lafayette floral design jobs about $17.12/hr (ZipRecruiter, Sept 2026); national median $17.96/hr (BLS).</p>
+          <p>Deposit and contract terms: <a href="https://www.hanafloristpos.com/blog/what-should-be-in-a-wedding-flower-contract/" target="_blank" rel="noopener">Hana Florist POS</a>. Permit: <a href="https://ldaf.la.gov/plants/florists" target="_blank" rel="noopener">LDAF florists page</a>.</p>
+          <p>Minutes per piece are estimates. Time yourself on a practice bouquet and boutonniere and put your real minutes in.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+</div>
+
+<div class="bar" role="region" aria-label="Quote total">
+  <div class="bar-in">
+    <div class="bar-txt">
+      <span class="bar-total tab" id="barTotal">$0</span>
+      <span class="bar-sub tab" id="barSub">You make $0/hr</span>
+    </div>
+    <button class="btn" id="seeBtn" type="button">See breakdown</button>
+  </div>
+</div>
+
+<script>
+(function(){
+const KEY = "amelie-pricer-v1";
+const TIERS = {
+  budget:  {label:"Simple",  flowers:"Carnations, baby's breath, eucalyptus"},
+  mid:     {label:"Classic", flowers:"Standard and spray roses, lisianthus"},
+  premium: {label:"Luxe",    flowers:"Garden roses, peonies"}
+};
+const DEFAULT_ITEMS = [
+  {id:"bride",  name:"Bridal bouquet",          qty:1, stems:30, mins:75,  hard:1.5,  shop:200},
+  {id:"maids",  name:"Bridesmaid bouquet",      qty:8, stems:15, mins:36,  hard:1.5,  shop:95},
+  {id:"girl",   name:"Flower girl bouquet",     qty:1, stems:8,  mins:18,  hard:1,    shop:45},
+  {id:"bout",   name:"Boutonniere (groomsmen)", qty:9, stems:3,  mins:20,  hard:0.75, shop:18},
+  {id:"dads",   name:"Boutonniere (dads)",      qty:2, stems:3,  mins:20,  hard:0.75, shop:18},
+  {id:"cgran",  name:"Corsage (grandmothers)",  qty:3, stems:5,  mins:24,  hard:3,    shop:45},
+  {id:"cmom",   name:"Corsage (mothers)",       qty:2, stems:5,  mins:24,  hard:3,    shop:45},
+  {id:"altar",  name:"Altar arrangement",       qty:2, stems:30, mins:75,  hard:20,   shop:200},
+  {id:"altarL", name:"Large altar piece",       qty:0, stems:50, mins:120, hard:20,   shop:300},
+  {id:"center", name:"Centerpiece",             qty:0, stems:12, mins:20,  hard:5,    shop:null}
+];
+const DEFAULT_SET = {stemCost:{budget:1, mid:1.75, premium:3}, waste:15, tax:9, consult:2, sourcing:2, cleanup:1, proc:1,
+  holAuto:true, holPct:20, deposit:50, balDays:21, shopDel:150};
+const clone = o => JSON.parse(JSON.stringify(o));
+function fresh(){ return {client:"", date:"", tier:"mid", rate:25, delOn:true, delHours:2, gas:10, items:clone(DEFAULT_ITEMS), set:clone(DEFAULT_SET)}; }
+
+let S = fresh();
+try { const raw = localStorage.getItem(KEY); if (raw){ const p = JSON.parse(raw); S = Object.assign(fresh(), p); S.set = Object.assign(clone(DEFAULT_SET), p.set||{}); S.set.stemCost = Object.assign(clone(DEFAULT_SET.stemCost), (p.set||{}).stemCost||{}); } } catch(e){}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const money = x => "$" + Math.round(x).toLocaleString("en-US");
+const nice = x => x <= 0 ? 0 : (x < 30 ? Math.ceil(x) : Math.ceil(x/5)*5);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function parseDate(s){ if(!s) return null; const [y,m,d] = s.split("-").map(Number); if(!y||!m||!d) return null; return new Date(y, m-1, d); }
+function mothersDay(y){ const d = new Date(y,4,1); const first = 1 + (7 - d.getDay()) % 7; return new Date(y,4,first+7); }
+function holidayFor(date){
+  if(!date) return null; const y = date.getFullYear();
+  const list = [["Valentine's Day", new Date(y,1,14)], ["Mother's Day", mothersDay(y)]];
+  for(const [name, h] of list){ const diff = Math.round((date - h)/86400000); if (Math.abs(diff) <= 14) return {name, h}; }
+  return null;
+}
+const fmtDate = d => d.toLocaleDateString("en-US",{weekday:"short", month:"short", day:"numeric", year:"numeric"});
+
+/* ---------- the model ---------- */
+function compute(){
+  const st = S.set, stemCost = st.stemCost[S.tier] || 0, waste = st.waste/100;
+  const date = parseDate(S.date), hol = holidayFor(date);
+  const holMult = (st.holAuto && hol) ? 1 + st.holPct/100 : 1;
+  let designHrs = 0, stems = 0;
+  S.items.forEach(it => { designHrs += it.qty * it.mins/60; stems += it.qty * it.stems; });
+  const orderStems = Math.ceil(stems * (1 + waste));
+  const procHrs = stems > 0 ? orderStems/100 * st.proc : 0;
+  const overheadHrs = stems > 0 || designHrs > 0 ? st.consult + st.sourcing + st.cleanup + procHrs : 0;
+  const spread = designHrs > 0 ? overheadHrs/designHrs : 0;
+  let itemsTotal = 0, matTotal = 0, flowerSpend = 0, shopTotal = 0, ownCompared = 0;
+  const lines = S.items.map(it => {
+    const flowers = it.stems * stemCost * (1 + waste) * holMult;
+    const mat = flowers + it.hard;
+    const raw = mat + (it.mins/60) * (1 + spread) * S.rate;
+    const each = nice(raw), line = each * it.qty;
+    itemsTotal += line; matTotal += mat * it.qty; flowerSpend += flowers * it.qty;
+    if (it.shop != null && it.shop !== "" && it.qty > 0){ shopTotal += it.shop * it.qty; ownCompared += line; }
+    return {it, each, line, mat};
+  });
+  const delHrs = S.delOn ? S.delHours : 0, gas = S.delOn ? S.gas : 0;
+  const delivery = S.delOn ? nice(S.delHours * S.rate + S.gas) : 0;
+  if (S.delOn){ shopTotal += st.shopDel; ownCompared += delivery; }
+  const subtotal = itemsTotal + delivery;
+  const costs = matTotal + gas;
+  const hours = designHrs + overheadHrs + delHrs;
+  const pay = subtotal - costs;
+  const perHr = hours > 0 ? pay/hours : 0;
+  const tax = subtotal * st.tax/100, grand = subtotal + tax;
+  const deposit = Math.round(grand * st.deposit/100);
+  const due = date ? new Date(date.getFullYear(), date.getMonth(), date.getDate() - st.balDays) : null;
+  return {lines, delivery, subtotal, costs, matTotal, gas, hours, designHrs, overheadHrs, delHrs, pay, perHr, tax, grand,
+          deposit, balance: grand - deposit, due, hol, holMult, stems, orderStems, flowerSpend, shopTotal, ownCompared, date};
+}
+
+/* ---------- rendering ---------- */
+function renderTiers(){
+  $("tiers").innerHTML = Object.keys(TIERS).map(k =>
+    `<button type="button" class="tier" data-tier="${k}" aria-pressed="${S.tier===k}">
+      <b>${TIERS[k].label}</b><span>${TIERS[k].flowers}</span><em class="tab">about $${num(S.set.stemCost[k]).toFixed(2)}/stem</em></button>`).join("");
+}
+function itemRow(it){
+  const sid = esc(it.id);
+  const shopVal = it.shop == null ? "" : it.shop;
+  return `<li class="item${it.qty? "":" zero"}" data-id="${sid}">
+    <div class="item-main">
+      <div class="item-text"><span class="item-name">${esc(it.name)}</span><span class="item-meta tab" data-meta>${it.stems} stems · ${it.mins} min each</span></div>
+      <div class="stepper"><button type="button" data-act="dec" aria-label="One fewer ${esc(it.name)}">−</button><output data-qty>${it.qty}</output><button type="button" data-act="inc" aria-label="One more ${esc(it.name)}">+</button></div>
+    </div>
+    <div class="item-sub"><span data-each class="tab"></span><button type="button" class="linkbtn" data-act="edit" aria-expanded="false">Adjust</button><span class="line" data-line></span></div>
+    <div class="item-edit" hidden>
+      <label class="f wide" for="it-${sid}-name">Name<input type="text" id="it-${sid}-name" data-f="name" value="${esc(it.name)}"></label>
+      <label class="f" for="it-${sid}-stems">Stems in each<input type="number" id="it-${sid}-stems" data-f="stems" min="0" step="1" inputmode="numeric" value="${it.stems}"></label>
+      <label class="f" for="it-${sid}-mins">Minutes to make each<input type="number" id="it-${sid}-mins" data-f="mins" min="0" step="1" inputmode="numeric" value="${it.mins}"></label>
+      <label class="f" for="it-${sid}-hard">Ribbon, pins, vase ($ each)<input type="number" id="it-${sid}-hard" data-f="hard" min="0" step="0.25" inputmode="decimal" value="${it.hard}"></label>
+      <label class="f" for="it-${sid}-shop">What a shop charges ($, optional)<input type="number" id="it-${sid}-shop" data-f="shop" min="0" step="1" inputmode="decimal" value="${shopVal}"></label>
+      <div class="wide"><button type="button" class="btn danger" data-act="remove">Remove this piece</button></div>
+    </div>
+  </li>`;
+}
+function renderItems(){ $("items").innerHTML = S.items.map(itemRow).join(""); }
+
+function rateChip(r){
+  if (r < 17) return ["bad","Below a shop wage"];
+  if (r < 20) return ["warn","Shop-job wage"];
+  if (r <= 32) return ["good","Fair"];
+  return ["good","Premium"];
+}
+
+function update(){
+  const R = compute();
+  // per-item lines
+  R.lines.forEach(({it, each, line}) => {
+    const li = document.querySelector(`.item[data-id="${CSS.escape(it.id)}"]`); if(!li) return;
+    li.classList.toggle("zero", !it.qty);
+    li.querySelector("[data-qty]").textContent = it.qty;
+    li.querySelector("[data-meta]").textContent = `${it.stems} stems · ${it.mins} min each`;
+    li.querySelector("[data-each]").textContent = `${money(each)} each`;
+    li.querySelector("[data-line]").textContent = it.qty ? money(line) : "Not included";
+  });
+  // rate
+  $("rateOut").textContent = "$" + S.rate;
+  const [rc, rt] = rateChip(S.rate); const chip = $("rateChip"); chip.className = "chip " + rc; chip.textContent = rt;
+  // holiday notice
+  const hn = $("holidayNote");
+  if (R.hol){
+    hn.hidden = false;
+    hn.textContent = S.set.holAuto
+      ? `This date is within 2 weeks of ${R.hol.name}. Wholesale roses jump around then, so flower costs are bumped ${S.set.holPct}%.`
+      : `This date is within 2 weeks of ${R.hol.name}. Wholesale roses jump around then. The automatic bump is off in "Fine-tune my numbers."`;
+  } else hn.hidden = true;
+  $("delFields").hidden = !S.delOn;
+
+  // results
+  const any = R.subtotal > 0;
+  $("barTotal").textContent = money(R.subtotal);
+  $("barSub").textContent = any ? `You make ${money(R.perHr)}/hr for ${R.hours.toFixed(1)} hrs` : "Add pieces to see a price";
+  if (!any){ $("resBody").innerHTML = `<p class="empty">Add at least one piece in step 3 and the price shows up here.</p>`; $("quoteText").value = ""; return; }
+
+  const [pc, pt] = rateChip(R.perHr);
+  const matPct = Math.max(0, Math.min(100, R.costs / R.subtotal * 100));
+  let compare = "";
+  if (R.shopTotal > 0){
+    const off = 1 - R.ownCompared / R.shopTotal;
+    const cls = off < 0 ? "warn" : off > 0.5 ? "warn" : "good";
+    const msg = off < 0 ? `That's ${Math.round(-off*100)}% more than a shop would charge. Check your minutes and stem costs.`
+      : off > 0.5 ? `That's ${Math.round(off*100)}% under a shop. You may be leaving money on the table.`
+      : `You're about ${Math.round(off*100)}% under a shop. That's a fair friend discount.`;
+    compare = `<div class="note ${cls}">A Lafayette shop would charge about <b class="tab">${money(R.shopTotal)}</b> for the same pieces. ${msg}</div>`;
+  }
+  const rows = R.lines.filter(l => l.it.qty > 0).map(l =>
+    `<dt>${l.it.qty} × ${esc(l.it.name)} <span class="hint tab">(${money(l.each)})</span></dt><dd>${money(l.line)}</dd>`).join("")
+    + (S.delOn ? `<dt>Delivery & setup</dt><dd>${money(R.delivery)}</dd>` : "");
+  $("resBody").innerHTML = `
+    <div class="total-hero">
+      <span class="subhead">Quote before tax</span>
+      <span class="big tab">${money(R.subtotal)}</span>
+      <span class="hint tab">${money(R.grand)} with ${S.set.tax}% sales tax</span>
+    </div>
+    <div class="note ${pc === "bad" ? "bad" : pc === "warn" ? "warn" : "good"}">
+      You keep <b class="tab">${money(R.pay)}</b> for about <b class="tab">${R.hours.toFixed(1)} hours</b> of work, which is <b class="tab">${money(R.perHr)}/hr</b>. <span class="chip ${pc}" style="margin-left:4px">${pt}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="split" role="img" aria-label="${Math.round(matPct)}% of the price covers flowers and supplies, ${100-Math.round(matPct)}% is your pay"><i class="s-mat" style="width:${matPct}%"></i><i class="s-pay" style="width:${100-matPct}%"></i></div>
+      <div class="legend tab"><span style="--c:var(--stem)">Flowers, supplies, gas ${money(R.costs)}</span><span style="--c:var(--accent)">Your pay ${money(R.pay)}</span></div>
+    </div>
+    ${compare}
+    <div class="subhead">Price by piece</div>
+    <dl class="kv">${rows}<dt class="sum">Total</dt><dd class="sum">${money(R.subtotal)}</dd></dl>
+    <div class="subhead">Where your hours go</div>
+    <dl class="kv">
+      <dt>Arranging</dt><dd>${R.designHrs.toFixed(1)} hrs</dd>
+      <dt>Meeting, buying, prepping stems, cleanup</dt><dd>${R.overheadHrs.toFixed(1)} hrs</dd>
+      ${S.delOn ? `<dt>Delivery & setup</dt><dd>${R.delHrs.toFixed(1)} hrs</dd>` : ""}
+      <dt class="sum">Total</dt><dd class="sum">${R.hours.toFixed(1)} hrs</dd>
+    </dl>
+    <div class="subhead">Shopping list</div>
+    <dl class="kv">
+      <dt>Stems to order (${R.stems} + ${S.set.waste}% extra)</dt><dd>${R.orderStems}</dd>
+      <dt>Flower budget at ${TIERS[S.tier].label}${R.holMult > 1 ? " + holiday bump" : ""}</dt><dd>${money(R.flowerSpend)}</dd>
+      <dt>Ribbon, pins, wristlets, vessels</dt><dd>${money(R.matTotal - R.flowerSpend)}</dd>
+    </dl>
+    <div class="subhead">Getting paid</div>
+    <dl class="kv">
+      <dt>Deposit to book (${S.set.deposit}%, non-refundable)</dt><dd>${money(R.deposit)}</dd>
+      <dt>Balance${R.due ? ", due " + fmtDate(R.due) : `, due ${S.set.balDays} days before`}</dt><dd>${money(R.balance)}</dd>
+    </dl>
+    <p class="hint">Lock the final count on the balance due date, then order flowers. Counts can go up after that, not down.</p>`;
+  $("quoteText").value = quoteText(R);
+}
+
+function quoteText(R){
+  const L = [];
+  const who = S.client.trim();
+  L.push(`Wedding flowers${who ? " for " + who : ""}`);
+  if (R.date) L.push(fmtDate(R.date));
+  L.push(`Style: ${TIERS[S.tier].label} (${TIERS[S.tier].flowers.toLowerCase()})`);
+  L.push("");
+  R.lines.filter(l => l.it.qty > 0).forEach(l => {
+    L.push(l.it.qty > 1 ? `${l.it.qty} ${l.it.name}: ${money(l.each)} each, ${money(l.line)}` : `${l.it.name}: ${money(l.line)}`);
+  });
+  if (S.delOn) L.push(`Delivery and setup: ${money(R.delivery)}`);
+  L.push("");
+  L.push(`Subtotal: ${money(R.subtotal)}`);
+  L.push(`Sales tax (${S.set.tax}%): ${money(R.tax)}`);
+  L.push(`Total: ${money(R.grand)}`);
+  L.push("");
+  L.push(`To hold your date: ${money(R.deposit)} deposit (non-refundable).`);
+  L.push(R.due ? `The rest, ${money(R.balance)}, is due ${fmtDate(R.due)}. Final counts are locked that day.`
+               : `The rest, ${money(R.balance)}, is due ${S.set.balDays} days before the wedding. Final counts are locked that day.`);
+  L.push("If a flower isn't available or isn't up to standard that week, I'll swap in one of similar color, style and value.");
+  return L.join("\n");
+}
+
+/* ---------- inputs ---------- */
+function bindFields(){
+  $("client").value = S.client; $("wdate").value = S.date;
+  $("rate").value = S.rate; $("delOn").checked = S.delOn; $("delHours").value = S.delHours; $("gas").value = S.gas;
+  const st = S.set;
+  $("sc-budget").value = st.stemCost.budget; $("sc-mid").value = st.stemCost.mid; $("sc-premium").value = st.stemCost.premium;
+  $("consult").value = st.consult; $("sourcing").value = st.sourcing; $("cleanup").value = st.cleanup; $("proc").value = st.proc;
+  $("waste").value = st.waste; $("holPct").value = st.holPct; $("tax").value = st.tax; $("deposit").value = st.deposit;
+  $("balDays").value = st.balDays; $("shopDel").value = st.shopDel; $("holAuto").checked = st.holAuto;
+}
+function changed(){ save(); update(); }
+
+$("client").addEventListener("input", e => { S.client = e.target.value; changed(); });
+$("wdate").addEventListener("input", e => { S.date = e.target.value; changed(); });
+$("rate").addEventListener("input", e => { S.rate = num(e.target.value); changed(); });
+$("delOn").addEventListener("change", e => { S.delOn = e.target.checked; changed(); });
+$("delHours").addEventListener("input", e => { S.delHours = num(e.target.value); changed(); });
+$("gas").addEventListener("input", e => { S.gas = num(e.target.value); changed(); });
+[["consult","consult"],["sourcing","sourcing"],["cleanup","cleanup"],["proc","proc"],["waste","waste"],["holPct","holPct"],
+ ["tax","tax"],["deposit","deposit"],["balDays","balDays"],["shopDel","shopDel"]].forEach(([id,k]) =>
+  $(id).addEventListener("input", e => { S.set[k] = num(e.target.value); changed(); }));
+["budget","mid","premium"].forEach(k => $("sc-"+k).addEventListener("input", e => { S.set.stemCost[k] = num(e.target.value); renderTiers(); changed(); }));
+$("holAuto").addEventListener("change", e => { S.set.holAuto = e.target.checked; changed(); });
+
+$("tiers").addEventListener("click", e => {
+  const b = e.target.closest("[data-tier]"); if(!b) return;
+  S.tier = b.dataset.tier; document.querySelectorAll(".tier").forEach(t => t.setAttribute("aria-pressed", t === b)); changed();
+});
+
+const itemsEl = $("items");
+itemsEl.addEventListener("click", e => {
+  const btn = e.target.closest("[data-act]"); if(!btn) return;
+  const li = btn.closest(".item"); const it = S.items.find(x => x.id === li.dataset.id); if(!it) return;
+  const act = btn.dataset.act;
+  if (act === "inc") it.qty = Math.min(99, it.qty + 1);
+  else if (act === "dec") it.qty = Math.max(0, it.qty - 1);
+  else if (act === "edit"){ const p = li.querySelector(".item-edit"); p.hidden = !p.hidden; btn.setAttribute("aria-expanded", !p.hidden); btn.textContent = p.hidden ? "Adjust" : "Done"; return; }
+  else if (act === "remove"){ S.items = S.items.filter(x => x !== it); li.remove(); }
+  changed();
+});
+itemsEl.addEventListener("input", e => {
+  const f = e.target.dataset.f; if(!f) return;
+  const li = e.target.closest(".item"); const it = S.items.find(x => x.id === li.dataset.id); if(!it) return;
+  if (f === "name"){ it.name = e.target.value; li.querySelector(".item-name").textContent = it.name || "Untitled piece"; }
+  else if (f === "shop") it.shop = e.target.value === "" ? null : num(e.target.value);
+  else it[f] = num(e.target.value);
+  changed();
+});
+$("addItem").addEventListener("click", () => {
+  const id = "c" + Date.now().toString(36);
+  S.items.push({id, name:"New piece", qty:1, stems:10, mins:20, hard:2, shop:null});
+  itemsEl.insertAdjacentHTML("beforeend", itemRow(S.items[S.items.length-1]));
+  const li = itemsEl.lastElementChild; li.querySelector(".item-edit").hidden = false;
+  const eb = li.querySelector('[data-act="edit"]'); eb.textContent = "Done"; eb.setAttribute("aria-expanded","true");
+  const nm = li.querySelector('[data-f="name"]'); nm.focus(); nm.select();
+  changed();
+});
+
+$("seeBtn").addEventListener("click", () => $("results").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"}));
+
+$("copyBtn").addEventListener("click", () => {
+  const ta = $("quoteText"), msg = $("copyMsg");
+  const fallback = () => { ta.focus(); ta.select(); msg.textContent = "Text selected. Press copy on your keyboard or long-press to copy."; };
+  try {
+    navigator.clipboard.writeText(ta.value).then(() => { msg.textContent = "Copied. Paste it into your text or email."; }, fallback);
+  } catch(e){ fallback(); }
+});
+
+$("newQuote").addEventListener("click", () => {
+  const keep = clone(S.set), rate = S.rate, delHours = S.delHours, gas = S.gas;
+  const custom = S.items.map(it => Object.assign({}, it, {qty: 0}));
+  S = fresh(); S.set = keep; S.rate = rate; S.delHours = delHours; S.gas = gas; S.items = custom;
+  bindFields(); renderTiers(); renderItems(); changed(); window.scrollTo({top:0});
+});
+$("resetAll").addEventListener("click", () => { $("resetConfirm").hidden = false; });
+$("resetNo").addEventListener("click", () => { $("resetConfirm").hidden = true; });
+$("resetYes").addEventListener("click", () => {
+  S = fresh(); $("resetConfirm").hidden = true; bindFields(); renderTiers(); renderItems(); changed(); window.scrollTo({top:0});
+});
+
+bindFields(); renderTiers(); renderItems(); update();
+})();
+</script>
+</body>
+</html>
