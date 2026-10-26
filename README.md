@@ -14,6 +14,10 @@ For each piece:
 
 Each piece rounds up to the nearest $1 under $30 and the nearest $5 above. Delivery is its own line: drive and setup hours × rate, plus gas.
 
+## Flat price check
+
+Step 6 takes an optional flat price for the whole order. The app then shows pay at that price (flat price minus flowers, supplies and gas), the hourly rate it works out to, the dollar gap from the calculated price, and four guideposts for the same order: break even, $17/hr, $20/hr, and her chosen rate. When a flat price is set, the client text lists the pieces without prices and shows one package price.
+
 ## Starting numbers
 
 | Setting | Default | Source |

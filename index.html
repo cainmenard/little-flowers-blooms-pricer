@@ -141,6 +141,9 @@ details.fine[open] summary::after{content:"−"}
 .sources{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
 .sources a{color:var(--accent)}
 .empty{color:var(--muted);text-align:center;padding:12px}
+.flat-row{display:flex;gap:8px;align-items:flex-end}
+.flat-row label{flex:1;min-width:0}
+.opt{font-family:var(--body);font-size:.8rem;font-weight:600;color:var(--muted)}
 
 /* sticky bar */
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bar);color:var(--bar-ink);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
@@ -204,6 +207,16 @@ details.fine[open] summary::after{content:"−"}
       <label class="f" for="delHours">Hours for drive + setup<input type="number" id="delHours" min="0" step="0.25" inputmode="decimal"></label>
       <label class="f" for="gas">Gas cost ($)<input type="number" id="gas" min="0" step="1" inputmode="decimal"></label>
     </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-flat">
+    <h2 id="h-flat"><span class="num">6</span>Try a flat price <span class="opt">optional</span></h2>
+    <p class="hint">Have a number in mind, like $1,000? Type it in to see what you'd keep for your time. Leave it blank to use the calculated price.</p>
+    <div class="flat-row">
+      <label class="f" for="flat">Flat price for everything ($)<input type="number" id="flat" min="0" step="25" inputmode="decimal" placeholder="1000"></label>
+      <button type="button" class="btn ghost" id="flatClear">Clear</button>
+    </div>
+    <div id="flatCheck" style="display:flex;flex-direction:column;gap:12px" hidden></div>
   </section>
 
   <section class="card" id="results" aria-labelledby="h-res">
@@ -302,7 +315,7 @@ const DEFAULT_ITEMS = [
 const DEFAULT_SET = {stemCost:{budget:1, mid:1.75, premium:3}, waste:15, tax:9, consult:2, sourcing:2, cleanup:1, proc:1,
   holAuto:true, holPct:20, deposit:50, balDays:21, shopDel:150};
 const clone = o => JSON.parse(JSON.stringify(o));
-function fresh(){ return {client:"", date:"", tier:"mid", rate:25, delOn:true, delHours:2, gas:10, items:clone(DEFAULT_ITEMS), set:clone(DEFAULT_SET)}; }
+function fresh(){ return {client:"", date:"", tier:"mid", rate:25, flat:null, delOn:true, delHours:2, gas:10, items:clone(DEFAULT_ITEMS), set:clone(DEFAULT_SET)}; }
 
 let S = fresh();
 try { const raw = localStorage.getItem(KEY); if (raw){ const p = JSON.parse(raw); S = Object.assign(fresh(), p); S.set = Object.assign(clone(DEFAULT_SET), p.set||{}); S.set.stemCost = Object.assign(clone(DEFAULT_SET.stemCost), (p.set||{}).stemCost||{}); } } catch(e){}
@@ -312,6 +325,7 @@ const $ = id => document.getElementById(id);
 const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const money = x => "$" + Math.round(x).toLocaleString("en-US");
 const nice = x => x <= 0 ? 0 : (x < 30 ? Math.ceil(x) : Math.ceil(x/5)*5);
+const perHour = x => (x < 0 ? "-$" : "$") + Math.abs(x).toFixed(2) + "/hr";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 function parseDate(s){ if(!s) return null; const [y,m,d] = s.split("-").map(Number); if(!y||!m||!d) return null; return new Date(y, m-1, d); }
@@ -335,7 +349,7 @@ function compute(){
   const procHrs = stems > 0 ? orderStems/100 * st.proc : 0;
   const overheadHrs = stems > 0 || designHrs > 0 ? st.consult + st.sourcing + st.cleanup + procHrs : 0;
   const spread = designHrs > 0 ? overheadHrs/designHrs : 0;
-  let itemsTotal = 0, matTotal = 0, flowerSpend = 0, shopTotal = 0, ownCompared = 0;
+  let itemsTotal = 0, matTotal = 0, flowerSpend = 0, shopTotal = 0, ownCompared = 0, allShop = true;
   const lines = S.items.map(it => {
     const flowers = it.stems * stemCost * (1 + waste) * holMult;
     const mat = flowers + it.hard;
@@ -343,6 +357,7 @@ function compute(){
     const each = nice(raw), line = each * it.qty;
     itemsTotal += line; matTotal += mat * it.qty; flowerSpend += flowers * it.qty;
     if (it.shop != null && it.shop !== "" && it.qty > 0){ shopTotal += it.shop * it.qty; ownCompared += line; }
+    else if (it.qty > 0) allShop = false;
     return {it, each, line, mat};
   });
   const delHrs = S.delOn ? S.delHours : 0, gas = S.delOn ? S.gas : 0;
@@ -351,12 +366,16 @@ function compute(){
   const subtotal = itemsTotal + delivery;
   const costs = matTotal + gas;
   const hours = designHrs + overheadHrs + delHrs;
-  const pay = subtotal - costs;
+  const flatOn = S.flat != null && S.flat > 0;
+  const price = flatOn ? S.flat : subtotal;
+  const pay = price - costs;
   const perHr = hours > 0 ? pay/hours : 0;
-  const tax = subtotal * st.tax/100, grand = subtotal + tax;
+  const calcPay = subtotal - costs, calcPerHr = hours > 0 ? calcPay/hours : 0;
+  const at = r => nice(costs + r * hours);
+  const tax = price * st.tax/100, grand = price + tax;
   const deposit = Math.round(grand * st.deposit/100);
   const due = date ? new Date(date.getFullYear(), date.getMonth(), date.getDate() - st.balDays) : null;
-  return {lines, delivery, subtotal, costs, matTotal, gas, hours, designHrs, overheadHrs, delHrs, pay, perHr, tax, grand,
+  return {flatOn, price, calcPay, calcPerHr, allShop, even: Math.ceil(costs), at17: at(17), at20: at(20), lines, delivery, subtotal, costs, matTotal, gas, hours, designHrs, overheadHrs, delHrs, pay, perHr, tax, grand,
           deposit, balance: grand - deposit, due, hol, holMult, stems, orderStems, flowerSpend, shopTotal, ownCompared, date};
 }
 
@@ -420,15 +439,18 @@ function update(){
 
   // results
   const any = R.subtotal > 0;
-  $("barTotal").textContent = money(R.subtotal);
-  $("barSub").textContent = any ? `You make ${money(R.perHr)}/hr for ${R.hours.toFixed(1)} hrs` : "Add pieces to see a price";
+  $("barTotal").textContent = money(any ? R.price : 0) + (R.flatOn && any ? " flat" : "");
+  $("barSub").textContent = !any ? "Add pieces to see a price"
+    : R.pay < 0 ? `You'd lose ${money(-R.pay)} out of pocket`
+    : `You make ${perHour(R.perHr)} for ${R.hours.toFixed(1)} hrs`;
+  renderFlat(R, any);
   if (!any){ $("resBody").innerHTML = `<p class="empty">Add at least one piece in step 3 and the price shows up here.</p>`; $("quoteText").value = ""; return; }
 
   const [pc, pt] = rateChip(R.perHr);
-  const matPct = Math.max(0, Math.min(100, R.costs / R.subtotal * 100));
+  const matPct = Math.max(0, Math.min(100, R.costs / R.price * 100));
   let compare = "";
-  if (R.shopTotal > 0){
-    const off = 1 - R.ownCompared / R.shopTotal;
+  if (R.shopTotal > 0 && (!R.flatOn || R.allShop)){
+    const off = 1 - (R.flatOn ? R.price : R.ownCompared) / R.shopTotal;
     const cls = off < 0 ? "warn" : off > 0.5 ? "warn" : "good";
     const msg = off < 0 ? `That's ${Math.round(-off*100)}% more than a shop would charge. Check your minutes and stem costs.`
       : off > 0.5 ? `That's ${Math.round(off*100)}% under a shop. You may be leaving money on the table.`
@@ -440,20 +462,22 @@ function update(){
     + (S.delOn ? `<dt>Delivery & setup</dt><dd>${money(R.delivery)}</dd>` : "");
   $("resBody").innerHTML = `
     <div class="total-hero">
-      <span class="subhead">Quote before tax</span>
-      <span class="big tab">${money(R.subtotal)}</span>
+      <span class="subhead">${R.flatOn ? "Flat price before tax" : "Quote before tax"}</span>
+      <span class="big tab">${money(R.price)}</span>
       <span class="hint tab">${money(R.grand)} with ${S.set.tax}% sales tax</span>
     </div>
-    <div class="note ${pc === "bad" ? "bad" : pc === "warn" ? "warn" : "good"}">
-      You keep <b class="tab">${money(R.pay)}</b> for about <b class="tab">${R.hours.toFixed(1)} hours</b> of work, which is <b class="tab">${money(R.perHr)}/hr</b>. <span class="chip ${pc}" style="margin-left:4px">${pt}</span>
-    </div>
+    ${R.pay < 0
+      ? `<div class="note bad">You'd lose <b class="tab">${money(-R.pay)}</b> out of pocket. Flowers, supplies and gas cost <b class="tab">${money(R.costs)}</b>.</div>`
+      : `<div class="note ${pc === "bad" ? "bad" : pc === "warn" ? "warn" : "good"}">
+      You keep <b class="tab">${money(R.pay)}</b> for about <b class="tab">${R.hours.toFixed(1)} hours</b> of work, which is <b class="tab">${perHour(R.perHr)}</b>. <span class="chip ${pc}" style="margin-left:4px">${pt}</span>
+    </div>`}
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="split" role="img" aria-label="${Math.round(matPct)}% of the price covers flowers and supplies, ${100-Math.round(matPct)}% is your pay"><i class="s-mat" style="width:${matPct}%"></i><i class="s-pay" style="width:${100-matPct}%"></i></div>
-      <div class="legend tab"><span style="--c:var(--stem)">Flowers, supplies, gas ${money(R.costs)}</span><span style="--c:var(--accent)">Your pay ${money(R.pay)}</span></div>
+      <div class="legend tab"><span style="--c:var(--stem)">Flowers, supplies, gas ${money(R.costs)}</span><span style="--c:var(--accent)">Your pay ${money(Math.max(0, R.pay))}</span></div>
     </div>
     ${compare}
-    <div class="subhead">Price by piece</div>
-    <dl class="kv">${rows}<dt class="sum">Total</dt><dd class="sum">${money(R.subtotal)}</dd></dl>
+    <div class="subhead">${R.flatOn ? `Calculated price by piece at $${S.rate}/hr` : "Price by piece"}</div>
+    <dl class="kv">${rows}<dt class="sum">${R.flatOn ? "Calculated total" : "Total"}</dt><dd class="sum">${money(R.subtotal)}</dd></dl>
     <div class="subhead">Where your hours go</div>
     <dl class="kv">
       <dt>Arranging</dt><dd>${R.designHrs.toFixed(1)} hrs</dd>
@@ -476,6 +500,39 @@ function update(){
   $("quoteText").value = quoteText(R);
 }
 
+function renderFlat(R, any){
+  const box = $("flatCheck");
+  if (!R.flatOn || !any){ box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  const diff = R.price - R.subtotal;
+  const [pc, pt] = rateChip(R.perHr);
+  const head = R.pay < 0
+    ? `<div class="note bad">At <b class="tab">${money(R.price)}</b> you'd lose <b class="tab">${money(-R.pay)}</b> out of pocket, before counting any of your <b class="tab">${R.hours.toFixed(1)} hours</b>. Flowers, supplies and gas cost <b class="tab">${money(R.costs)}</b>.</div>`
+    : `<div class="note ${pc === "bad" ? "bad" : pc === "warn" ? "warn" : "good"}">At <b class="tab">${money(R.price)}</b> you keep <b class="tab">${money(R.pay)}</b> for <b class="tab">${R.hours.toFixed(1)} hours</b>, which is <b class="tab">${perHour(R.perHr)}</b>. <span class="chip ${pc}" style="margin-left:4px">${pt}</span></div>`;
+  const diffRow = diff === 0 ? `<dt>Difference</dt><dd>$0</dd>`
+    : diff < 0 ? `<dt>You'd give up</dt><dd style="color:var(--bad)">-${money(-diff)}</dd>`
+    : `<dt>You'd earn extra</dt><dd style="color:var(--stem)">+${money(diff)}</dd>`;
+  const tip = R.perHr < 20
+    ? `<p class="hint">If ${money(R.price)} is the client's budget, keep the price and shrink the order instead: fewer altar pieces, smaller bridesmaid bouquets, or the Simple style. Change step 2 or 3 and watch the hourly rate here.</p>`
+    : "";
+  box.innerHTML = `${head}
+    <dl class="kv">
+      <dt>Calculated price at $${S.rate}/hr</dt><dd>${money(R.subtotal)}</dd>
+      <dt>Your flat price</dt><dd>${money(R.price)}</dd>
+      ${diffRow}
+      <dt class="sum">Your pay at the flat price</dt><dd class="sum">${money(R.pay)}</dd>
+    </dl>
+    <div class="subhead">Price guideposts for this order</div>
+    <dl class="kv">
+      <dt>Break even (covers flowers, supplies, gas only)</dt><dd>${money(R.even)}</dd>
+      <dt>Pays you $17/hr (what a shop job pays)</dt><dd>${money(R.at17)}</dd>
+      <dt>Pays you $20/hr (your floor)</dt><dd>${money(R.at20)}</dd>
+      <dt>Pays you $${S.rate}/hr (your rate)</dt><dd>${money(R.subtotal)}</dd>
+    </dl>
+    ${tip}
+    <p class="hint">The client text below now shows this as one package price.</p>`;
+}
+
 function quoteText(R){
   const L = [];
   const who = S.client.trim();
@@ -485,11 +542,12 @@ function quoteText(R){
   L.push(`Style: ${TIERS[S.tier].label} (${TIERS[S.tier].flowers.toLowerCase()})`);
   L.push("");
   R.lines.filter(l => l.it.qty > 0).forEach(l => {
-    L.push(l.it.qty > 1 ? `${l.it.qty} ${l.it.name}: ${money(l.each)} each, ${money(l.line)}` : `${l.it.name}: ${money(l.line)}`);
+    if (R.flatOn) L.push(l.it.qty > 1 ? `${l.it.qty} ${l.it.name}` : l.it.name);
+    else L.push(l.it.qty > 1 ? `${l.it.qty} ${l.it.name}: ${money(l.each)} each, ${money(l.line)}` : `${l.it.name}: ${money(l.line)}`);
   });
-  if (S.delOn) L.push(`Delivery and setup: ${money(R.delivery)}`);
+  if (S.delOn) L.push(R.flatOn ? "Delivery and setup" : `Delivery and setup: ${money(R.delivery)}`);
   L.push("");
-  L.push(`Subtotal: ${money(R.subtotal)}`);
+  L.push(R.flatOn ? `Package price: ${money(R.price)}` : `Subtotal: ${money(R.subtotal)}`);
   L.push(`Sales tax (${S.set.tax}%): ${money(R.tax)}`);
   L.push(`Total: ${money(R.grand)}`);
   L.push("");
@@ -505,7 +563,7 @@ function quoteText(R){
 /* ---------- inputs ---------- */
 function bindFields(){
   $("client").value = S.client; $("wdate").value = S.date;
-  $("rate").value = S.rate; $("delOn").checked = S.delOn; $("delHours").value = S.delHours; $("gas").value = S.gas;
+  $("rate").value = S.rate; $("flat").value = S.flat == null ? "" : S.flat; $("delOn").checked = S.delOn; $("delHours").value = S.delHours; $("gas").value = S.gas;
   const st = S.set;
   $("sc-budget").value = st.stemCost.budget; $("sc-mid").value = st.stemCost.mid; $("sc-premium").value = st.stemCost.premium;
   $("consult").value = st.consult; $("sourcing").value = st.sourcing; $("cleanup").value = st.cleanup; $("proc").value = st.proc;
@@ -517,6 +575,8 @@ function changed(){ save(); update(); }
 $("client").addEventListener("input", e => { S.client = e.target.value; changed(); });
 $("wdate").addEventListener("input", e => { S.date = e.target.value; changed(); });
 $("rate").addEventListener("input", e => { S.rate = num(e.target.value); changed(); });
+$("flat").addEventListener("input", e => { S.flat = e.target.value === "" ? null : num(e.target.value); changed(); });
+$("flatClear").addEventListener("click", () => { S.flat = null; $("flat").value = ""; changed(); $("flat").focus(); });
 $("delOn").addEventListener("change", e => { S.delOn = e.target.checked; changed(); });
 $("delHours").addEventListener("input", e => { S.delHours = num(e.target.value); changed(); });
 $("gas").addEventListener("input", e => { S.gas = num(e.target.value); changed(); });
