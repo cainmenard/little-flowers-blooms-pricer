@@ -1,4 +1,6 @@
-# Amelie's Flower Pricer
+# Little Flower's Blooms Pricer
+
+Wedding quote calculator for The Little Flower's Blooms by Amelie, a floral design business in Lafayette, Louisiana.
 
 A one-page calculator for pricing wedding flower orders. Pick a flower style, tap in the pieces, set an hourly rate, and it shows the quote, the hourly pay after costs, a stem shopping list, deposit dates, and a client text ready to copy.
 

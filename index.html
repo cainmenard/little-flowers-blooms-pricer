@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Amelie's Flower Pricer</title>
-<meta name="description" content="Price wedding flower orders from stem costs and your hourly rate, then copy a ready-to-send client quote.">
+<title>Little Flower's Blooms Pricer</title>
+<meta name="description" content="The Little Flower's Blooms by Amelie: price wedding flower orders from stem costs and your hourly rate, then copy a ready-to-send client quote.">
 <meta name="theme-color" content="#17231C">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Flower Pricer">
+<meta name="apple-mobile-web-app-title" content="Blooms Pricer">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -155,7 +155,8 @@ details.fine[open] summary::after{content:"−"}
 <body>
 <div class="wrap">
   <header style="display:flex;flex-direction:column;gap:6px">
-    <h1>Amelie's Flower Pricer</h1>
+    <span class="subhead">The Little Flower's Blooms by Amelie</span>
+    <h1>Wedding Pricer</h1>
     <p class="lede">Tap in the pieces, pick a style, set what your time is worth. The price, your pay per hour, and a text you can send the client all update as you go.</p>
   </header>
 
@@ -478,6 +479,7 @@ function update(){
 function quoteText(R){
   const L = [];
   const who = S.client.trim();
+  L.push(`The Little Flower's Blooms by Amelie`);
   L.push(`Wedding flowers${who ? " for " + who : ""}`);
   if (R.date) L.push(fmtDate(R.date));
   L.push(`Style: ${TIERS[S.tier].label} (${TIERS[S.tier].flowers.toLowerCase()})`);
@@ -495,6 +497,8 @@ function quoteText(R){
   L.push(R.due ? `The rest, ${money(R.balance)}, is due ${fmtDate(R.due)}. Final counts are locked that day.`
                : `The rest, ${money(R.balance)}, is due ${S.set.balDays} days before the wedding. Final counts are locked that day.`);
   L.push("If a flower isn't available or isn't up to standard that week, I'll swap in one of similar color, style and value.");
+  L.push("");
+  L.push("Thank you! Amelie");
   return L.join("\n");
 }
 
